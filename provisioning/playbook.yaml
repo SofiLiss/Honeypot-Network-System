@@ -1,122 +1,38 @@
 ---
 
-- name: Общая настройка всех хостов
-  hosts: all
-  become: true
-  tasks:
-    - name: Установка зависимостей для Docker
-      apt:
-        name: "{{item}}"
-        state: present
-        update_cache: yes
-      loop:
-        - apt-transport-https
-        - ca-certificates
-        - curl
-        - gnupg-agent
-        - software-properties-common
-
-    - name: Добавление официального GPG ключа Docker
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
-
-    - name: Добавление репозитория Docker
-      apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
-        state: present
-
-    - name: Установка Docker
-      apt:
-        name: "{{item}}"
-        state: latest
-        update_cache: yes
-      loop:
-        - docker-ce
-        - docker-ce-cli
-        - containerd.io
-
-    - name: Установка Docker модуля для Python
-      apt:
-        name: python3-docker
-        state: present
-
-    - name: Добавление пользователя vagrant в группу docker
-      user:
-        name: vagrant
-        groups: docker
-        append: yes
-
-    - name: Создание директории для контейнеров
-      file:
-        path: /opt/containers
-        state: directory
-        mode: '0755'
-    
-    - name: Перенастройка SSH сервера на порт 2222
-      lineinfile:
-        path: /etc/ssh/sshd_config
-        regexp: '^#?Port '
-        line: 'Port 2222'
-      notify: restart_ssh
-
-    - name: Запуск SSH сервера на порту 2222
-      systemd:
-        name: ssh
-        state: started
-        enabled: yes
-
-    - name: Обновление порта для текущей сессии
-      set_fact:
-        ansible_port: 2222
-
-    - name: Установка rsyslog
-      apt:
-        name: rsyslog
-        state: present
-        update_cache: yes
-    
-  # handlers:
-  # - name: restart_ssh
-  #   systemd:
-  #     name: ssh
-  #     state: restarted
-
-
 - name: Настрока не админиских хостов
   hosts: all:!adminhost
   become: true
   tasks:
     - name: Создание папки для монтирования
       ansible.builtin.file:
-        path: /home/user/honeylogs
+        path: /home/{{ ansible_user_id }}/honeylogs
         state: directory
+        mode: '0777'
 
-    - name: Копирование SSH контейнера на сервер
-      copy:
-        src: /var/lib/docker/containers/practical_williamson.tar
-        dest: /opt/containers/practical_williamson.tar
-        mode: '0755'
+    - name: Создание файла для сбора логов с контейнера
+      ansible.builtin.file:
+        path: /home/{{ ansible_user_id }}/honeylogs/ssh_logs.log
+        state: touch
+        mode: '0666'
 
-    - name: Загрузка SSH образа из tar файла
-      docker_image:
-        name: custom-ssh
-        load_path: /opt/containers/practical_williamson.tar
-        source: load
-        state: present
+    - name: Сборка образа SSH-ханипота из Dockerfile
+      community.docker.docker_image:
+        name: my_ssh_honeypot
+        build:
+          path: ./path/to/ssh_honeypot_folder
+        source: build
 
-    # - name: Запуск SSH контейнера на порту 22
-    #   docker_container:
-    #     name: ssh-server
-    #     image: custom-ssh
-    #     volumes:
-    #       - "/home/user/honeylogs/ssh_logs.log:/app/ssh_honeypot.log"
-    #     state: started
-    #     restart_policy: always
-    #     ports:
-    #       - "22:22"  
-    #     networks:
-    #       - name: bridge
+    - name: Запуск SSH контейнера на порту 22
+      docker_container:
+        name: ssh_honeypot
+        image: my_ssh_honeypot
+        state: started
+        restart_policy: always
+        ports:
+          - "22:22"
+        volumes:
+          - "/home/{{ ansible_user_id }}/honeylogs/ssh_logs.log:/app/ssh_honeypot.log"
     
     - name: Создание конфигурации для отправки логов
       copy:
@@ -126,7 +42,7 @@
 
           # Указываем следить за лог-файлом ханипота
           input(type="imfile"
-            File="/home/user/honeylogs/ssh_logs.log"
+            File="/home/{{ ansible_user_id }}/honeylogs/ssh_logs.log"
             Tag="honeypot"
             Severity="info"
             Facility="local7")
@@ -167,32 +83,34 @@
 
     - name: Создание папки для монтирования
       ansible.builtin.file:
-        path: /home/user/honeylogs
+        path: /home/{{ ansible_user_id }}/honeylogs
         state: directory
+        mode: '0777'
 
-    - name: Копирование MySQL контейнера на сервер
-      copy:
-        src: /var/lib/docker/containers/tender_shtern.tar
-        dest: /opt/containers/tender_shtern.tar
-        mode: '0755' 
+    - name: Создание файла для сбора логов с контейнера
+      ansible.builtin.file:
+        path: /home/{{ ansible_user_id }}/honeylogs/mysql_logs.log
+        state: touch
+        mode: '0666'
 
-    - name: Загрузка MySQL образа из tar файла
-      docker_image:
-        name: custom-mysql
-        load_path: /opt/containers/tender_shtern.tar
-        source: load
-        state: present
+
+    - name: Сборка образа mysql-ханипота из Dockerfile
+      community.docker.docker_image:
+        name: my_mysql_honeypot
+        build:
+          path: ./path/to/mysql_honeypot_folder
+        source: build
 
     - name: Запуск MySQL контейнера на порту 3306
       docker_container:
-        name: mysql-server
-        image: custom-mysql
-        volumes:
-          - "/home/user/honeylogs/mysql_logs.log:/app/mysql_honeypot.log"
+        name: mysql_honeypot
+        image: my_mysql_honeypot
         state: started
         restart_policy: always
         ports:
-          - "3306:3306"  
+          - "3306:3306"
+        volumes:
+          - "/home/{{ ansible_user_id }}/honeylogs/mysql_logs.log:/app/mysql_honeypot.log"
         env:
           MYSQL_ROOT_PASSWORD: "rootpassword"
           MYSQL_DATABASE: "appdb"
@@ -209,7 +127,7 @@
 
           # Указываем следить за лог-файлом ханипота
           input(type="imfile"
-            File="/home/user/honeylogs/mysql_logs.log"
+            File="/home/{{ ansible_user_id }}/honeylogs/mysql_logs.log"
             Tag="honeypot"
             Severity="info"
             Facility="local7")
@@ -230,6 +148,12 @@
         name: rsyslog
         state: restarted
         enabled: yes
+    
+    - name: restart mysql
+      service:
+        name: MySQL
+        state: restarted
+        enabled: yes
 
 
 - name: Настройка рабочих станций
@@ -238,35 +162,33 @@
   tasks:
     - name: Создание папки для монтирования
       ansible.builtin.file:
-        path: /home/user/honeylogs
+        path: /home/{{ ansible_user_id }}/honeylogs
         state: directory
+        mode: '0777'
 
-    - name: Копирование Telnet контейнера
-      copy:
-        src: /var/lib/docker/containers/blissful_einstein.tar
-        dest: /opt/containers/blissful_einstein.tar
-        mode: '0755'
+    - name: Создание файла для сбора логов с контейнера
+      ansible.builtin.file:
+        path: /home/{{ ansible_user_id }}/honeylogs/telnet_logs.log
+        state: touch
+        mode: '0666'
 
-    - name: Загрузка Telnet образа
-      docker_image:
-        name: custom-telnet
-        load_path: /opt/containers/blissful_einstein.tar
-        source: load
-        state: present
+    - name: Сборка образа telnet-ханипота из Dockerfile
+      community.docker.docker_image:
+        name: my_telnet_honeypot
+        build:
+          path: ./path/to/mytelnet_honeypot_folder
+        source: build
 
-    - name: Запуск Telnet контейнера на порту 23
+    - name: Запуск telnet контейнера на порту 23
       docker_container:
-        name: telnet-server
-        image: custom-telnet
-        volumes:
-          - "/home/user/honeylogs/telnet_logs.log:/app/telnet_honeypot.log"
+        name: telnet_honeypot
+        image: my_telnet_honeypot
         state: started
         restart_policy: always
         ports:
           - "23:23"
-        command: ["/usr/sbin/in.telnetd", "-debug", "23"]
-        networks:
-          - name: bridge
+        volumes:
+          - "/home/{{ ansible_user_id }}/honeylogs/telnet_logs.log:/app/telnet_honeypot.log"
 
     - name: Создание конфигурации для отправки логов
       copy:
@@ -276,7 +198,7 @@
 
           # Указываем следить за лог-файлом ханипота
           input(type="imfile"
-            File="/home/user/honeylogs/telnet_logs.log"
+            File="/home/{{ ansible_user_id }}/honeylogs/telnet_logs.log"
             Tag="honeypot"
             Severity="info"
             Facility="local7")
@@ -344,3 +266,71 @@
         name: rsyslog
         state: restarted
         enabled: yes
+
+- name: Общая настройка для всех хостов
+  hosts: all
+  become: true
+  tasks:
+    - name: Установка зависимостей для Docker
+      apt:
+        name: "{{item}}"
+        state: present
+        update_cache: yes
+      loop:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg-agent
+        - software-properties-common
+
+    - name: Добавление официального GPG ключа Docker
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Добавление репозитория Docker
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/{{ ansible_distribution | lower }} {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Установка Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: latest
+
+    - name: Установка Docker модуля для Python
+      apt:
+        name: python3-docker
+        state: present
+
+    - name: Добавление пользователя vagrant в группу docker
+      user:
+        name: vagrant
+        groups: docker
+        append: yes
+
+    - name: Перенастройка SSH сервера на порт 2222
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port '
+        line: 'Port 2222'
+      notify: restart_ssh
+
+    - name: Обновление порта для текущей сессии
+      set_fact:
+        ansible_port: 2222
+
+    - name: Установка rsyslog
+      apt:
+        name: rsyslog
+        state: present
+        update_cache: yes
+    
+  handlers:
+  - name: restart_ssh
+    systemd:
+      name: ssh
+      state: restarted
