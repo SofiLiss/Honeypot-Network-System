@@ -2,7 +2,7 @@
 Это набор скриптов для быстрого развертывания сети виртуальных машин, с ssh, telnet и mysql honepot-ловушками, работающих на Docker контейнерах, так же в сети организована система логирования событий для сбора данных о сканировании сети (вы можете получить ip, username, время сканирования и некоторые другие данные).
 
 ![Ansible](https://img.shields.io/badge/Ansible-EE0000?style=for-the-badge&logo=ansible&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![Ruby](https://img.shields.io/badge/Ruby-CC342D?style=flat&logo=ruby&logoColor=white) 
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![Ruby](https://img.shields.io/badge/Ruby-CC342D?style=flat&logo=ruby&logoColor=white) 
 
 
 
@@ -14,7 +14,7 @@
   - Dokcer Desktop (для скачивания откройте https://docs.docker.com/desktop/) 
     
 ## Развертка инфраструктуры
-1. Подготовка необходимых файлов
+### 1. Подготовка необходимых файлов
 Скачайте все файлы или клонируйте репозиторий с помощью GIT Bash 
 
 ```bash
@@ -22,7 +22,7 @@ git clone https://github.com/SofiLiss/Honeypot-Network-System
 ```
 Отредактируйте файл playbook: замените строки /path/to/ssh_honeypot_folder, /path/to/mysql_honeypot_folder, /path/to/telnet_honeypot_folder на пути к соответвующим папкам каждого honepot из репозитория
 
-2. Установка ПО на подсистему Linux
+### 2. Установка ПО на подсистему Linux
 Открываем WSL2
 Устанавливаем vagrant
 
@@ -56,7 +56,7 @@ sudo add-apt-repository --yes --update ppa:ansible/ansible
 sudo apt install ansible -y
 ```
 
-3. Сборка и запуск системы
+### 3. Сборка и запуск системы
 Создаем среду vagrant
 
 ```bash
