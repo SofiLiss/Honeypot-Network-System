@@ -9,7 +9,28 @@
   - Oracle VirtualBox (Version 7.2; для скачивания откройте https://www.virtualbox.org/)
     
 ## Развертка инфраструктуры
+1. Заупскаем WSL2
+Устанавливаем vagrant
 
+```bash
+wget https://releases.hashicorp.com/vagrant/2.4.9/vagrant_2.4.9-1_amd64.deb
+sudo apt install ./vagrant_2.4.9-1_amd64.deb
+```
 
+Устанавливаем ansible
+
+```bash
+sudo apt update
+sudo apt install software-properties-common -y
+sudo add-apt-repository --yes --update ppa:ansible/ansible
+sudo apt install ansible -y
+```
+2. Подготовка необходимых файлов
+Чтобы склонировать репозиотрий введите
+
+```bash
+wget https://releases.hashicorp.com/vagrant/2.4.9/vagrant_2.4.9-1_amd64.deb
+sudo apt install ./vagrant_2.4.9-1_amd64.deb
+```
 ## Стек технологий
 * Python 3.10
