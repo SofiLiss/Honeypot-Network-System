@@ -2,9 +2,7 @@ Vagrant.configure("2") do |config|
   config.vm.box = "debian/bookworm64"
   config.vm.box_version = "12.20250126.1"
   config.vm.synced_folder "./", "/vagrant", owner: "vagrant"
-  # config.ssh.username = 'vagrant'
-  # config.ssh.password = 'vagrant'
-  # config.ssh.keys_only = false
+  config.ssh.guest_port = 2222
   config.vm.provider "virtualbox" do |vb|
     vb.memory = 2048
     vb.cpus = 1
