@@ -2,7 +2,7 @@
 Это набор скриптов для быстрого развертывания сети виртуальных машин, с ssh, telnet и mysql honepot-ловушками, работающих на Docker контейнерах, так же в сети организована система логирования событий для сбора данных о сканировании сети (вы можете получить ip, username, время сканирования и некоторые другие данные).
 
 ![Ansible](https://img.shields.io/badge/Ansible-EE0000?style=for-the-badge&logo=ansible&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white) ![Ruby](https://img.shields.io/badge/Ruby-CC342D?style=flat&logo=ruby&logoColor=white) 
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Python](https://img.shields.io/badge/Python-489620?style=flat&logo=python&logoColor=white) ![Ruby](https://img.shields.io/badge/Ruby-CC342D?style=flat&logo=ruby&logoColor=white) 
 
 
 
