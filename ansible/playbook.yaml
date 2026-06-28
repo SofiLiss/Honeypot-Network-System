@@ -1,0 +1,258 @@
+- name: Configure all hosts (Rsyslog and SSH port)
+  hosts: all_hosts
+  become: true
+  tasks:
+    - name: Install rsync on worker hosts
+      apt:
+        name: rsync
+        state: present
+
+    - name: Change SSH port in sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?Port\s+'
+        line: 'Port {{ ssh_port }}'
+        state: present
+
+    - name: Restart SSH service
+      service:
+        name: ssh
+        state: restarted
+      async: 1        
+      poll: 0
+
+    - name: Dynamically update Ansible SSH port
+      set_fact:
+        ansible_port: "{{ ssh_port }}"
+
+
+
+- name: Setup Docker and Container logging on non-admin hosts
+  hosts: all_hosts:!adminhost
+  become: true
+  tasks:
+    - name: Copy Debian packages to VM
+      copy:
+        src: deb-packages/
+        dest: /tmp/deb-packages/
+        mode: '0644'
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install Docker and prerequisites from repository
+      apt:
+        name:
+          - docker.io
+          - containerd
+          - python3-docker
+          - apt-transport-https
+          - ca-certificates
+          - curl
+        state: present
+
+    - name: Add vagrant user to docker group
+      user:
+        name: vagrant
+        groups: docker
+        append: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Wait for Docker socket to be available
+      wait_for:
+        path: /var/run/docker.sock
+        timeout: 30
+
+    - name: Install Docker prerequisites
+      apt:
+        name: [apt-transport-https, ca-certificates, curl, python3-pip]
+        state: present
+
+    - name: Install Docker and Docker SDK for Python (needed for Ansible docker modules)
+      apt:
+        name: [docker.io, python3-docker]
+        state: present
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create directory for container custom logs on host
+      file:
+        path: "{{ log_dir }}"
+        state: directory
+        mode: '0777'
+
+    - name: Create build directory for ssh-server
+      file:
+        path: "{{ docker_build_dir }}/ssh-server"
+        state: directory
+
+    - name: Copy Dockerfile and script for ssh-server
+      copy:
+        src: ssh-server/
+        dest: "{{ docker_build_dir }}/ssh-server/"
+
+    - name: Build SSH-Server Docker Image
+      shell: |
+        docker build -t my-ssh-server .
+      args:
+        chdir: "{{ docker_build_dir }}/ssh-server"
+      register: build_ssh
+
+    - name: Run SSH-Server Container on Port 2222
+      shell: |
+        docker run -d \
+          --name ssh-server-container \
+          --restart always \
+          -p 2222:2222 \
+          -v {{ log_dir }}:/var/log/app_logs \
+          my-ssh-server
+      register: run_ssh
+      changed_when: run_ssh.rc == 0
+
+  handlers:
+    - name: Restart Rsyslog
+      service:
+        name: rsyslog
+        state: restarted
+
+
+
+- name: Setup SQL Server Container
+  hosts: sqlserver
+  become: true
+  tasks:
+    - name: Create build directory for sql-server
+      file:
+        path: "{{ docker_build_dir }}/sql-server"
+        state: directory
+
+    - name: Copy Dockerfile and script for sql-server
+      copy:
+        src: sql-server/
+        dest: "{{ docker_build_dir }}/sql-server/"
+
+    - name: Build SQL-Server Docker Image
+      shell: |
+        docker build -t my-sql-server .
+      args:
+        chdir: "{{ docker_build_dir }}/sql-server"
+      register: build_sql
+
+    - name: Run SQL-Server Container
+      shell: |
+        docker run -d \
+          --name sql-server-container \
+          --restart always \
+          -p 3306:3306 \
+          -v {{ log_dir }}:/var/log/app_logs \
+          my-sql-server
+      register: run_sql
+      changed_when: run_sql.rc == 0
+
+
+
+- name: Setup Telnet Server Container
+  hosts: workstations
+  become: true
+  tasks:
+    - name: Create build directory for telnet-server
+      file:
+        path: "{{ docker_build_dir }}/telnet-server"
+        state: directory
+
+    - name: Copy Dockerfile and script for telnet-server
+      copy:
+        src: telnet-server/
+        dest: "{{ docker_build_dir }}/telnet-server/"
+
+    - name: Build Telnet-Server Docker Image
+      shell: |
+        docker build -t my-telnet-server .
+      args:
+        chdir: "{{ docker_build_dir }}/telnet-server"
+      register: build_sql
+
+    - name: Run Telnet-Server Container on Port 23
+      shell: |
+        docker run -d \
+          --name telnet-server-container \
+          --restart always \
+          -p 23:23 \
+          -v {{ log_dir }}:/var/log/app_logs \
+          my-telnet-server
+      register: run_telnet
+      changed_when: run_telnet.rc == 0
+
+
+
+- name: Generate rsync SSH key on adminhost
+  hosts: adminhost
+  become: true
+  tasks:
+    - name: Ensure .ssh directory exists for root
+      file:
+        path: /root/.ssh
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Generate SSH key for rsync (Root)
+      openssh_keypair:
+        path: /root/.ssh/id_rsa_rsync_root
+        type: rsa
+        size: 2048
+        state: present
+        owner: root
+        group: root
+
+    - name: Read public key into variable
+      slurp:
+        src: /root/.ssh/id_rsa_rsync_root.pub
+      register: rsync_pubkey_root
+
+
+
+- name: Authorize adminhost key on worker hosts
+  hosts: all_hosts:!adminhost
+  become: true
+  tasks:
+    - name: Add adminhost ROOT public key to root authorized_keys
+      authorized_key:
+        user: root 
+        key: "{{ hostvars['adminhost']['rsync_pubkey_root']['content'] | b64decode }}"
+        state: present
+
+
+
+- name: Configure log collection on adminhost
+  hosts: adminhost
+  become: true
+  tasks:
+    - name: Create directories for remote logs
+      file:
+        path: /var/log/remote/{{ item }}
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop: "{{ groups['all_hosts'] | difference(['adminhost']) }}"
+
+    - name: Add cron job to pull logs from each host (as Root)
+      cron:
+        name: "Pull logs from {{ item }}"
+        minute: "*/5"
+        user: root
+        job: "rsync -az --delete -e 'ssh -p {{ ssh_port }} -i /root/.ssh/id_rsa_rsync_root -o StrictHostKeyChecking=no' root@{{ hostvars[item]['ansible_host'] }}:{{ log_dir }}/ /var/log/remote/{{ item }}/ >> /var/log/rsync_{{ item }}.log 2>&1"
+      loop: "{{ groups['all_hosts'] | difference(['adminhost']) }}"

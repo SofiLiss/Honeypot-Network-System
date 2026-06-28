@@ -13,12 +13,11 @@ COPY sshserv.py .
 RUN chmod +x /app/sshserv.py
 
 RUN useradd --create-home --shell /bin/bash honeypot && \
-    mkdir -p /app/logs && \
-    chmod +x /app/sshserv.py && \
-    chown -R honeypot:honeypot /app
+    mkdir -p /var/log/app_logs && \        
+    chown -R honeypot:honeypot /app /var/log/app_logs
 
 USER honeypot
 
-EXPOSE 22
+EXPOSE 2222
 
-CMD ["python", "sshserv.py"]
+CMD ["python", "sshserv.py", "--log", "/var/log/app_logs/ssh_honeypot.log"]
