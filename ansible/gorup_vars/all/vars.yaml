@@ -1,0 +1,3 @@
+ssh_port: 3232
+docker_build_dir: /opt/docker-build
+log_dir: /var/log/docker_apps

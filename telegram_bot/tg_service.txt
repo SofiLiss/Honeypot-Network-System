@@ -1,0 +1,13 @@
+[Unit]
+Description=Honeypot Telegram Bot
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/vagrant/tgbot.py
+EnvironmentFile=/etc/tgbot.env
+Restart=always
+User=vagrant
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target
