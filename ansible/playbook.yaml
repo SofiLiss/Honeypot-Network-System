@@ -99,13 +99,15 @@
 
     - name: Copy Dockerfile and script for ssh-server
       copy:
-<<<<<<< Updated upstream:ansible/playbook.yaml
+
         src: ssh-server/
         dest: "{{ docker_build_dir }}/ssh-server/"
-=======
+
         src: ../Docker/ssh_honeypot/
         dest: /opt/docker-build/ssh-server/
->>>>>>> Stashed changes:Ansible/playbook.yaml
+
+        src: ssh-server/
+        dest: "{{ docker_build_dir }}/ssh-server/"
 
     - name: Build SSH-Server Docker Image
       shell: |
@@ -144,13 +146,15 @@
 
     - name: Copy Dockerfile and script for sql-server
       copy:
-<<<<<<< Updated upstream:ansible/playbook.yaml
+
         src: sql-server/
         dest: "{{ docker_build_dir }}/sql-server/"
-=======
+
         src: ../Docker/mysql_honeypot/
         dest: /opt/docker-build/sql-server/
->>>>>>> Stashed changes:Ansible/playbook.yaml
+
+        src: sql-server/
+        dest: "{{ docker_build_dir }}/sql-server/"
 
     - name: Build SQL-Server Docker Image
       shell: |
@@ -183,13 +187,15 @@
 
     - name: Copy Dockerfile and script for telnet-server
       copy:
-<<<<<<< Updated upstream:ansible/playbook.yaml
+
         src: telnet-server/
         dest: "{{ docker_build_dir }}/telnet-server/"
-=======
+
         src: ../Docker/telnet_honeypot/
         dest: /opt/docker-build/telnet-server/
->>>>>>> Stashed changes:Ansible/playbook.yaml
+
+        src: telnet-server/
+        dest: "{{ docker_build_dir }}/telnet-server/"
 
     - name: Build Telnet-Server Docker Image
       shell: |
