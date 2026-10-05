@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: MegaLinter
+        uses: oxsecurity/megalinter/flavors/documentation@v7
+        env:
+          ENABLE_LINTERS: ANSIBLE_ANSIBLE_LINT,DOCKERFILE_HADOLINT,BASH_SHELLCHECK
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload MegaLinter reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: megalinter-reports
+          path: |
+            megalinter-reports/
+            mega-linter.log
+          retention-days: 7
+
+  smoke-test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+        matrix:
+          include:
+            - compose: combos/vm1-ssh-telnet.yml
+              ports: "2222 23"
+            - compose: combos/vm2-mysql-ssh.yml
+              ports: "2222 3306"
+              
+    steps:
+        - uses: actions/checkout@v4
+        - run: docker compose -f ${{ matrix.compose }} up -d --wait
+        - run: |
+            for port in ${{ matrix.ports }}; do nc -zv localhost $port; done

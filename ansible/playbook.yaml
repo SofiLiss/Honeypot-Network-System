@@ -52,7 +52,7 @@
           - ca-certificates
           - curl
         state: present
-        
+
     - name: Install Docker Compose plugin
       apt:
         name: docker-compose-plugin
@@ -102,29 +102,29 @@
         path: "{{ docker_build_dir }}/ssh-server"
         state: directory
 
-    - name: Copy Dockerfile and script for ssh-server
-      copy:
+    # - name: Copy Dockerfile and script for ssh-server
+    #   copy:
 
-        src: ssh-server/
-        dest: "{{ docker_build_dir }}/ssh-server/"
+    #     src: ssh-server/
+    #     dest: "{{ docker_build_dir }}/ssh-server/"
 
-    - name: Build SSH-Server Docker Image
-      shell: |
-        docker build -t my-ssh-server .
-      args:
-        chdir: "{{ docker_build_dir }}/ssh-server"
-      register: build_ssh
+    # - name: Build SSH-Server Docker Image
+    #   shell: |
+    #     docker build -t my-ssh-server .
+    #   args:
+    #     chdir: "{{ docker_build_dir }}/ssh-server"
+    #   register: build_ssh
 
-    - name: Run SSH-Server Container on Port 2222
-      shell: |
-        docker run -d \
-          --name ssh-server-container \
-          --restart always \
-          -p 2222:2222 \
-          -v {{ log_dir }}:/var/log/app_logs \
-          my-ssh-server
-      register: run_ssh
-      changed_when: run_ssh.rc == 0
+    # - name: Run SSH-Server Container on Port 2222
+    #   shell: |
+    #     docker run -d \
+    #       --name ssh-server-container \
+    #       --restart always \
+    #       -p 2222:2222 \
+    #       -v {{ log_dir }}:/var/log/app_logs \
+    #       my-ssh-server
+    #   register: run_ssh
+    #   changed_when: run_ssh.rc == 0
 
   handlers:
     - name: Restart Rsyslog
@@ -143,29 +143,29 @@
         path: "{{ docker_build_dir }}/sql-server"
         state: directory
 
-    - name: Copy Dockerfile and script for sql-server
-      copy:
+    # - name: Copy Dockerfile and script for sql-server
+    #   copy:
 
-        src: sql-server/
-        dest: "{{ docker_build_dir }}/sql-server/"
+    #     src: sql-server/
+    #     dest: "{{ docker_build_dir }}/sql-server/"
 
-    - name: Build SQL-Server Docker Image
-      shell: |
-        docker build -t my-sql-server .
-      args:
-        chdir: "{{ docker_build_dir }}/sql-server"
-      register: build_sql
+    # - name: Build SQL-Server Docker Image
+    #   shell: |
+    #     docker build -t my-sql-server .
+    #   args:
+    #     chdir: "{{ docker_build_dir }}/sql-server"
+    #   register: build_sql
 
-    - name: Run SQL-Server Container
-      shell: |
-        docker run -d \
-          --name sql-server-container \
-          --restart always \
-          -p 3306:3306 \
-          -v {{ log_dir }}:/var/log/app_logs \
-          my-sql-server
-      register: run_sql
-      changed_when: run_sql.rc == 0
+    # - name: Run SQL-Server Container
+    #   shell: |
+    #     docker run -d \
+    #       --name sql-server-container \
+    #       --restart always \
+    #       -p 3306:3306 \
+    #       -v {{ log_dir }}:/var/log/app_logs \
+    #       my-sql-server
+    #   register: run_sql
+    #   changed_when: run_sql.rc == 0
 
 
 
@@ -178,31 +178,54 @@
         path: "{{ docker_build_dir }}/telnet-server"
         state: directory
 
-    - name: Copy Dockerfile and script for telnet-server
+    # - name: Copy Dockerfile and script for telnet-server
+    #   copy:
+
+    #     src: telnet-server/
+    #     dest: "{{ docker_build_dir }}/telnet-server/"
+
+    # - name: Build Telnet-Server Docker Image
+    #   shell: |
+    #     docker build -t my-telnet-server .
+    #   args:
+    #     chdir: "{{ docker_build_dir }}/telnet-server"
+    #   register: build_sql
+
+    # - name: Run Telnet-Server Container on Port 23
+    #   shell: |
+    #     docker run -d \
+    #       --name telnet-server-container \
+    #       --restart always \
+    #       -p 23:23 \
+    #       -v {{ log_dir }}:/var/log/app_logs \
+    #       my-telnet-server
+    #   register: run_telnet
+    #   changed_when: run_telnet.rc == 0
+
+- name: Deploy honeypot containers via Docker Compose
+  hosts: all_hosts:!adminhost
+  become: true
+  tasks:
+    - name: Copy combo compose file to host
       copy:
+        src: "../ci-compose/{{ docker_combo }}"
+        dest: "{{ docker_build_dir }}/docker-compose.yml"
+    - name: Copy .env file to host
+          copy:
+            src: "../.env.example" 
+            dest: "{{ docker_build_dir }}/.env"
+            mode: '0600' 
+    - name: Copy docker build contexts
+      copy:
+        src: "../docker/"
+        dest: "{{ docker_build_dir }}/docker/"
 
-        src: telnet-server/
-        dest: "{{ docker_build_dir }}/telnet-server/"
-
-    - name: Build Telnet-Server Docker Image
-      shell: |
-        docker build -t my-telnet-server .
-      args:
-        chdir: "{{ docker_build_dir }}/telnet-server"
-      register: build_sql
-
-    - name: Run Telnet-Server Container on Port 23
-      shell: |
-        docker run -d \
-          --name telnet-server-container \
-          --restart always \
-          -p 23:23 \
-          -v {{ log_dir }}:/var/log/app_logs \
-          my-telnet-server
-      register: run_telnet
-      changed_when: run_telnet.rc == 0
-
-
+    - name: Start containers via Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ docker_build_dir }}"
+        env_files:
+          - "{{ docker_build_dir }}/.env"
+        state: present
 
 - name: Generate rsync SSH key on adminhost
   hosts: adminhost
