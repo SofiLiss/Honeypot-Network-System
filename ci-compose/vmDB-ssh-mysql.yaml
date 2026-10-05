@@ -1,0 +1,70 @@
+services:
+  ssh-honeypot:
+    build:
+      context: ../docker/ssh-server
+      dockerfile: Dockerfile
+    image: ghcr.io/sofiliss/ssh-honeypot:${IMAGE_TAG:-latest}
+    container_name: ssh-honeypot
+    restart: unless-stopped
+    ports:
+      - "${SSH_PORT:-2222}:2222"
+    volumes:
+      - ${LOG_DIR:-/tmp/honeypot-logs}:/var/log/app_logs
+    networks:
+      - honeypot-net
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/log/ssh-honeypot
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 128m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 2222 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  sql-honeypot:
+    build:
+      context: ../docker/sql-server
+      dockerfile: Dockerfile
+    image: ghcr.io/sofiliss/telnet-honeypot:${IMAGE_TAG:-latest}
+    container_name: sql-honeypot
+    restart: unless-stopped
+    ports:
+      - "${TELNET_PORT:-3306}:3306"
+    networks:
+      - honeypot-net
+    volumes:
+      - ${LOG_DIR:-/tmp/honeypot-logs}:/var/log/app_logs
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/log/telnet-honeypot
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    mem_limit: 128m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  honeypot-net:
+    driver: bridge
