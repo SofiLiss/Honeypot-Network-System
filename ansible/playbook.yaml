@@ -52,6 +52,11 @@
           - ca-certificates
           - curl
         state: present
+        
+    - name: Install Docker Compose plugin
+      apt:
+        name: docker-compose-plugin
+        state: present
 
     - name: Add vagrant user to docker group
       user:
@@ -103,12 +108,6 @@
         src: ssh-server/
         dest: "{{ docker_build_dir }}/ssh-server/"
 
-        src: ../Docker/ssh_honeypot/
-        dest: /opt/docker-build/ssh-server/
-
-        src: ssh-server/
-        dest: "{{ docker_build_dir }}/ssh-server/"
-
     - name: Build SSH-Server Docker Image
       shell: |
         docker build -t my-ssh-server .
@@ -150,12 +149,6 @@
         src: sql-server/
         dest: "{{ docker_build_dir }}/sql-server/"
 
-        src: ../Docker/mysql_honeypot/
-        dest: /opt/docker-build/sql-server/
-
-        src: sql-server/
-        dest: "{{ docker_build_dir }}/sql-server/"
-
     - name: Build SQL-Server Docker Image
       shell: |
         docker build -t my-sql-server .
@@ -187,12 +180,6 @@
 
     - name: Copy Dockerfile and script for telnet-server
       copy:
-
-        src: telnet-server/
-        dest: "{{ docker_build_dir }}/telnet-server/"
-
-        src: ../Docker/telnet_honeypot/
-        dest: /opt/docker-build/telnet-server/
 
         src: telnet-server/
         dest: "{{ docker_build_dir }}/telnet-server/"
