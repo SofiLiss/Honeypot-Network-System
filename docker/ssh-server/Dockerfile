@@ -5,8 +5,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir paramiko
+RUN pip install --no-cache-dir --upgrade pip==24.0 && \
+    pip install --no-cache-dir paramiko==3.4.0
 
 COPY sshserv.py .
 
