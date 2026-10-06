@@ -51,6 +51,21 @@ jobs:
               
     steps:
         - uses: actions/checkout@v4
-        - run: docker compose -f ${{ matrix.compose }} up -d --wait
-        - run: |
+
+        - name: Start containers
+          run: docker compose -f ${{ matrix.compose }} up -d --wait
+          continue-on-error: true
+
+        - name: Debug container health
+          if: always()
+          run: |
+            docker compose -f ${{ matrix.compose }} ps
+            for id in $(docker compose -f ${{ matrix.compose }} ps -q); do
+              echo "=== $id ==="
+              docker inspect --format='{{json .State.Health}}' "$id" | python3 -m json.tool || true
+              docker logs "$id"
+            done
+
+        - name: Check open ports
+          run: |
             for port in ${{ matrix.ports }}; do nc -zv localhost $port; done
