@@ -3,17 +3,19 @@
 
 Vagrant.configure("2") do |config|
 
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.synced_folder "../", "/vagrant"
+
   config.vm.box = "custom_debian"
   config.vm.box_url = "E:/my_custom_debian.box"
   config.vm.box_check_update = false
+  config.ssh.insert_key = false
 
   ################################# adminhost
-
   config.vm.define "adminhost" do |node|
-  node.vm.network "private_network", ip: "192.168.56.10", auto_config: false
-  node.vm.provision "shell", inline: <<-SHELL
-    nmcli connection up enp0s8-static
-    cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
+    node.vm.network "private_network", ip: "192.168.56.10", auto_config: false
+    node.vm.provision "shell", inline: <<-SHELL
+      cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
 [connection]
 id=enp0s8-static
 type=ethernet
@@ -28,31 +30,35 @@ gateway=192.168.56.1
 [ipv6]
 method=disabled
 EOF
-    chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
-  nmcli connection reload
-  hostnamectl set-hostname adminhost
-    echo "127.0.1.1 adminhost" >> /etc/hosts
-  SHELL
+      chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
+      nmcli connection reload
+      nmcli connection up enp0s8-static || nmcli device connect enp0s8
+      hostnamectl set-hostname adminhost
+      echo "127.0.1.1 adminhost" >> /etc/hosts
+    SHELL
 
-  node.vm.provider "virtualbox" do |vb|
-    vb.name   = "adminhost"
-    vb.memory = 1024
-    vb.cpus   = 1
-    vb.customize ["modifyvm", :id, "--nic3", "none"]
-    vb.customize ["modifyvm", :id, "--nic4", "none"]
-    vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    node.vm.provider "virtualbox" do |vb|
+      vb.name   = "adminhost"
+      vb.memory = 1024
+      vb.cpus   = 1
+      vb.customize ["modifyvm", :id, "--nic3", "none"]
+      vb.customize ["modifyvm", :id, "--nic4", "none"]
+      vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    end
+
+    node.vm.synced_folder "../", "/project"
+    node.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "/vagrant/ansible/playbook.yaml"
+      ansible.inventory_path = "/vagrant/ansible/hosts.ini"
+      ansible.limit = "all" 
+    end
   end
-end
 
- ################################# sqlserver
-
+  ################################# sqlserver
   config.vm.define "sqlserver" do |node|
-
-  node.vm.network "private_network", ip: "192.168.56.20", auto_config: false
-
-  node.vm.provision "shell", inline: <<-SHELL
-    nmcli connection up enp0s8-static
-    cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
+    node.vm.network "private_network", ip: "192.168.56.20", auto_config: false
+    node.vm.provision "shell", inline: <<-SHELL
+      cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
 [connection]
 id=enp0s8-static
 type=ethernet
@@ -67,32 +73,28 @@ gateway=192.168.56.1
 [ipv6]
 method=disabled
 EOF
-    chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
-  nmcli connection reload
-  hostnamectl set-hostname sqlserver
-    echo "127.0.1.1 sqlserver" >> /etc/hosts
-  SHELL
+      chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
+      nmcli connection reload
+      nmcli connection up enp0s8-static || nmcli device connect enp0s8
+      hostnamectl set-hostname sqlserver
+      echo "127.0.1.1 sqlserver" >> /etc/hosts
+    SHELL
 
-  node.vm.provider "virtualbox" do |vb|
-    vb.name   = "sqlserver"
-    vb.memory = 1024
-    vb.cpus   = 1
-    vb.customize ["modifyvm", :id, "--nic3", "none"]
-    vb.customize ["modifyvm", :id, "--nic4", "none"]
-    vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    node.vm.provider "virtualbox" do |vb|
+      vb.name   = "sqlserver"
+      vb.memory = 1024
+      vb.cpus   = 1
+      vb.customize ["modifyvm", :id, "--nic3", "none"]
+      vb.customize ["modifyvm", :id, "--nic4", "none"]
+      vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    end
   end
-end
 
-
-  ################################ workstation1 — группа: workstations
-
+  ################################# workstation1
   config.vm.define "workstation1" do |node|
-    
-  node.vm.network "private_network", ip: "192.168.56.31", auto_config: false
-
-  node.vm.provision "shell", inline: <<-SHELL
-    nmcli connection up enp0s8-static
-    cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
+    node.vm.network "private_network", ip: "192.168.56.31", auto_config: false
+    node.vm.provision "shell", inline: <<-SHELL
+      cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
 [connection]
 id=enp0s8-static
 type=ethernet
@@ -107,32 +109,28 @@ gateway=192.168.56.1
 [ipv6]
 method=disabled
 EOF
-    chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
-  nmcli connection reload
-  hostnamectl set-hostname workstation1
-    echo "127.0.1.1 workstation1" >> /etc/hosts
-  SHELL
+      chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
+      nmcli connection reload
+      nmcli connection up enp0s8-static || nmcli device connect enp0s8
+      hostnamectl set-hostname workstation1
+      echo "127.0.1.1 workstation1" >> /etc/hosts
+    SHELL
 
-  node.vm.provider "virtualbox" do |vb|
-    vb.name   = "workstation1"
-    vb.memory = 1024
-    vb.cpus   = 1
-    vb.customize ["modifyvm", :id, "--nic3", "none"]
-    vb.customize ["modifyvm", :id, "--nic4", "none"]
-    vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    node.vm.provider "virtualbox" do |vb|
+      vb.name   = "workstation1"
+      vb.memory = 1024
+      vb.cpus   = 1
+      vb.customize ["modifyvm", :id, "--nic3", "none"]
+      vb.customize ["modifyvm", :id, "--nic4", "none"]
+      vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    end
   end
-end
 
-
-  #################################### workstation2 — группа: workstations
-
+  #################################### workstation2
   config.vm.define "workstation2" do |node|
-
-  node.vm.network "private_network", ip: "192.168.56.32", auto_config: false
-
-  node.vm.provision "shell", inline: <<-SHELL
-    nmcli connection up enp0s8-static
-    cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
+    node.vm.network "private_network", ip: "192.168.56.32", auto_config: false
+    node.vm.provision "shell", inline: <<-SHELL
+      cat > /etc/NetworkManager/system-connections/enp0s8-static.nmconnection << 'EOF'
 [connection]
 id=enp0s8-static
 type=ethernet
@@ -147,19 +145,20 @@ gateway=192.168.56.1
 [ipv6]
 method=disabled
 EOF
-    chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
-  nmcli connection reload
-  hostnamectl set-hostname workstation2
-    echo "127.0.1.1 workstation1" >> /etc/hosts
-  SHELL
+      chmod 600 /etc/NetworkManager/system-connections/enp0s8-static.nmconnection
+      nmcli connection reload
+      nmcli connection up enp0s8-static || nmcli device connect enp0s8
+      hostnamectl set-hostname workstation2
+      echo "127.0.1.1 workstation2" >> /etc/hosts
+    SHELL
 
-  node.vm.provider "virtualbox" do |vb|
-    vb.name   = "workstation2"
-    vb.memory = 1024
-    vb.cpus   = 1
-    vb.customize ["modifyvm", :id, "--nic3", "none"]
-    vb.customize ["modifyvm", :id, "--nic4", "none"]
-    vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    node.vm.provider "virtualbox" do |vb|
+      vb.name   = "workstation2"
+      vb.memory = 1024
+      vb.cpus   = 1
+      vb.customize ["modifyvm", :id, "--nic3", "none"]
+      vb.customize ["modifyvm", :id, "--nic4", "none"]
+      vb.customize ["modifyvm", :id, "--groups", "/manage"]
+    end
   end
-end
 end
