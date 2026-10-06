@@ -18,7 +18,7 @@ RUN useradd --create-home --shell /bin/bash honeypot && \
 
 USER honeypot
 
-EXPOSE 2222
+EXPOSE 3232
 
 CMD ["python", "sshserv.py", "--log", "/var/log/app_logs/ssh_honeypot.log"]
 

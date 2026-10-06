@@ -7,7 +7,7 @@ services:
     container_name: ssh-honeypot
     restart: unless-stopped
     ports:
-      - "${SSH_PORT:-2222}:2222"
+      - "${SSH_PORT:-3232}:3232"
     volumes:
       - ${LOG_DIR:-/tmp/honeypot-logs}:/var/log/app_logs
     networks:
