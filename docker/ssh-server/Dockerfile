@@ -22,5 +22,6 @@ EXPOSE 2222
 
 CMD ["python", "sshserv.py", "--log", "/var/log/app_logs/ssh_honeypot.log"]
 
-HEALTHCHECK --interval=5s --timeout=3s --retries=5 --start-period=5s \
-  CMD python -c "import socket; socket.create_connection(('localhost', 2222), timeout=2)" || exit 1
+COPY healthcheck.py .
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=5s \
+  CMD python healthcheck.py
