@@ -44,9 +44,9 @@ jobs:
     strategy:
         matrix:
           include:
-            - compose: ci-compose/vm1-ssh-telnet.yml
+            - compose: ci-compose/vmWS-ssh-telnet.yml
               ports: "2222 23"
-            - compose: ci-compose/vm2-mysql-ssh.yml
+            - compose: ci-compose/vmDB-mysql-ssh.yml
               ports: "2222 3306"
               
     steps:
