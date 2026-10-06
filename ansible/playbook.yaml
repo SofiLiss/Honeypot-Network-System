@@ -1,49 +1,55 @@
+---
+- name: Detect active SSH port and configure hosts
+  hosts: all_hosts
+  gather_facts: false
+  become: true
+  pre_tasks:
+    - name: Load port detection
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/detect_ports.yaml"
+
 - name: Configure all hosts (Rsyslog and SSH port)
   hosts: all_hosts
   become: true
   tasks:
     - name: Install rsync on worker hosts
-      apt:
+      ansible.builtin.apt:
         name: rsync
         state: present
+        update_cache: yes
 
     - name: Change SSH port in sshd_config
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?Port\s+'
         line: 'Port {{ ssh_port }}'
         state: present
 
     - name: Restart SSH service
-      service:
+      ansible.builtin.service:
         name: ssh
         state: restarted
       async: 1        
       poll: 0
 
     - name: Dynamically update Ansible SSH port
-      set_fact:
+      ansible.builtin.set_fact:
         ansible_port: "{{ ssh_port }}"
-
-
 
 - name: Setup Docker and Container logging on non-admin hosts
   hosts: all_hosts:!adminhost
   become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Load port detection
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/detect_ports.yaml"
   tasks:
-    - name: Copy Debian packages to VM
-      copy:
-        src: deb-packages/
-        dest: /tmp/deb-packages/
-        mode: '0644'
-
     - name: Update apt cache
-      apt:
+      ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
 
     - name: Install Docker and prerequisites from repository
-      apt:
+      ansible.builtin.apt:
         name:
           - docker.io
           - containerd
@@ -51,174 +57,72 @@
           - apt-transport-https
           - ca-certificates
           - curl
+          - docker-compose-v2
         state: present
 
-    - name: Install Docker Compose plugin
-      apt:
-        name: docker-compose-plugin
-        state: present
-
-    - name: Add vagrant user to docker group
-      user:
-        name: vagrant
+    - name: Add admin user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
         groups: docker
         append: yes
 
     - name: Ensure Docker service is running
-      service:
+      ansible.builtin.service:
         name: docker
         state: started
         enabled: yes
 
     - name: Wait for Docker socket to be available
-      wait_for:
+      ansible.builtin.wait_for:
         path: /var/run/docker.sock
         timeout: 30
 
-    - name: Install Docker prerequisites
-      apt:
-        name: [apt-transport-https, ca-certificates, curl, python3-pip]
-        state: present
-
-    - name: Install Docker and Docker SDK for Python (needed for Ansible docker modules)
-      apt:
-        name: [docker.io, python3-docker]
-        state: present
-
-    - name: Ensure Docker service is running
-      service:
-        name: docker
-        state: started
-        enabled: yes
-
     - name: Create directory for container custom logs on host
-      file:
+      ansible.builtin.file:
         path: "{{ log_dir }}"
         state: directory
         mode: '0777'
 
-    - name: Create build directory for ssh-server
-      file:
-        path: "{{ docker_build_dir }}/ssh-server"
-        state: directory
-
-    # - name: Copy Dockerfile and script for ssh-server
-    #   copy:
-
-    #     src: ssh-server/
-    #     dest: "{{ docker_build_dir }}/ssh-server/"
-
-    # - name: Build SSH-Server Docker Image
-    #   shell: |
-    #     docker build -t my-ssh-server .
-    #   args:
-    #     chdir: "{{ docker_build_dir }}/ssh-server"
-    #   register: build_ssh
-
-    # - name: Run SSH-Server Container on Port 2222
-    #   shell: |
-    #     docker run -d \
-    #       --name ssh-server-container \
-    #       --restart always \
-    #       -p 2222:2222 \
-    #       -v {{ log_dir }}:/var/log/app_logs \
-    #       my-ssh-server
-    #   register: run_ssh
-    #   changed_when: run_ssh.rc == 0
-
   handlers:
     - name: Restart Rsyslog
-      service:
+      ansible.builtin.service:
         name: rsyslog
         state: restarted
-
-
-
-- name: Setup SQL Server Container
-  hosts: sqlserver
-  become: true
-  tasks:
-    - name: Create build directory for sql-server
-      file:
-        path: "{{ docker_build_dir }}/sql-server"
-        state: directory
-
-    # - name: Copy Dockerfile and script for sql-server
-    #   copy:
-
-    #     src: sql-server/
-    #     dest: "{{ docker_build_dir }}/sql-server/"
-
-    # - name: Build SQL-Server Docker Image
-    #   shell: |
-    #     docker build -t my-sql-server .
-    #   args:
-    #     chdir: "{{ docker_build_dir }}/sql-server"
-    #   register: build_sql
-
-    # - name: Run SQL-Server Container
-    #   shell: |
-    #     docker run -d \
-    #       --name sql-server-container \
-    #       --restart always \
-    #       -p 3306:3306 \
-    #       -v {{ log_dir }}:/var/log/app_logs \
-    #       my-sql-server
-    #   register: run_sql
-    #   changed_when: run_sql.rc == 0
-
-
-
-- name: Setup Telnet Server Container
-  hosts: workstations
-  become: true
-  tasks:
-    - name: Create build directory for telnet-server
-      file:
-        path: "{{ docker_build_dir }}/telnet-server"
-        state: directory
-
-    # - name: Copy Dockerfile and script for telnet-server
-    #   copy:
-
-    #     src: telnet-server/
-    #     dest: "{{ docker_build_dir }}/telnet-server/"
-
-    # - name: Build Telnet-Server Docker Image
-    #   shell: |
-    #     docker build -t my-telnet-server .
-    #   args:
-    #     chdir: "{{ docker_build_dir }}/telnet-server"
-    #   register: build_sql
-
-    # - name: Run Telnet-Server Container on Port 23
-    #   shell: |
-    #     docker run -d \
-    #       --name telnet-server-container \
-    #       --restart always \
-    #       -p 23:23 \
-    #       -v {{ log_dir }}:/var/log/app_logs \
-    #       my-telnet-server
-    #   register: run_telnet
-    #   changed_when: run_telnet.rc == 0
 
 - name: Deploy honeypot containers via Docker Compose
   hosts: all_hosts:!adminhost
   become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Load port detection
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/detect_ports.yaml"
   tasks:
+    - name: Ensure docker build directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ docker_build_dir }}"
+        - "/opt/docker"
+
     - name: Copy combo compose file to host
-      copy:
-        src: "../ci-compose/{{ docker_combo }}"
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../ci-compose/{{ docker_combo }}"
         dest: "{{ docker_build_dir }}/docker-compose.yml"
+        mode: '0644'
+        
     - name: Copy .env file to host
-          copy:
-            src: "../.env.example" 
-            dest: "{{ docker_build_dir }}/.env"
-            mode: '0600' 
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../.env.example" 
+        dest: "{{ docker_build_dir }}/.env"
+        mode: '0600' 
+        
     - name: Copy docker build contexts
-      copy:
-        src: "../docker/"
-        dest: "{{ docker_build_dir }}/docker/"
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../docker/"
+        dest: "/opt/docker/"
+        mode: '0755'
 
     - name: Start containers via Docker Compose
       community.docker.docker_compose_v2:
@@ -232,7 +136,7 @@
   become: true
   tasks:
     - name: Ensure .ssh directory exists for root
-      file:
+      ansible.builtin.file:
         path: /root/.ssh
         state: directory
         owner: root
@@ -240,7 +144,7 @@
         mode: '0700'
 
     - name: Generate SSH key for rsync (Root)
-      openssh_keypair:
+      community.crypto.openssh_keypair:
         path: /root/.ssh/id_rsa_rsync_root
         type: rsa
         size: 2048
@@ -249,30 +153,30 @@
         group: root
 
     - name: Read public key into variable
-      slurp:
+      ansible.builtin.slurp:
         src: /root/.ssh/id_rsa_rsync_root.pub
       register: rsync_pubkey_root
-
-
 
 - name: Authorize adminhost key on worker hosts
   hosts: all_hosts:!adminhost
   become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Load port detection
+      ansible.builtin.import_tasks: "{{ playbook_dir }}/detect_ports.yaml"
   tasks:
     - name: Add adminhost ROOT public key to root authorized_keys
-      authorized_key:
+      ansible.builtin.authorized_key:
         user: root 
         key: "{{ hostvars['adminhost']['rsync_pubkey_root']['content'] | b64decode }}"
         state: present
-
-
 
 - name: Configure log collection on adminhost
   hosts: adminhost
   become: true
   tasks:
     - name: Create directories for remote logs
-      file:
+      ansible.builtin.file:
         path: /var/log/remote/{{ item }}
         state: directory
         mode: '0755'
@@ -281,7 +185,7 @@
       loop: "{{ groups['all_hosts'] | difference(['adminhost']) }}"
 
     - name: Add cron job to pull logs from each host (as Root)
-      cron:
+      ansible.builtin.cron:
         name: "Pull logs from {{ item }}"
         minute: "*/5"
         user: root

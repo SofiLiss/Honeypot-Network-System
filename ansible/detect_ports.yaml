@@ -1,0 +1,22 @@
+- name: Check if custom SSH port (3232) is open
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 3232
+    state: started
+    timeout: 2
+  register: ssh_port_3232_check
+  ignore_errors: true
+  delegate_to: localhost
+
+- name: Set Ansible SSH port to 3232 if open
+  ansible.builtin.set_fact:
+    ansible_port: 3232
+  when: ssh_port_3232_check is succeeded
+
+- name: Set Ansible SSH port to 22 if custom port is closed
+  ansible.builtin.set_fact:
+    ansible_port: 22
+  when: ssh_port_3232_check is failed
+
+- name: Gather facts after port detection
+  ansible.builtin.setup:
