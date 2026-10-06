@@ -46,7 +46,7 @@ jobs:
           include:
             - compose: ci-compose/vmWS-ssh-telnet.yml
               ports: "2222 23"
-            - compose: ci-compose/vmDB-mysql-ssh.yml
+            - compose: ci-compose/vmDB-ssh-mysql.yml
               ports: "2222 3306"
               
     steps:
