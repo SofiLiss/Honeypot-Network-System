@@ -6,3 +6,4 @@ desktop.ini
 ..bfg-report/
 bfg-1.13.0.jar
 Vagrant/*.box*
+.env
