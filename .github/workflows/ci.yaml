@@ -69,3 +69,38 @@ jobs:
         - name: Check open ports
           run: |
             for port in ${{ matrix.ports }}; do nc -zv localhost $port; done
+  
+  build-and-push:
+    needs: smoke-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - image: ssh-honeypot
+            context: docker/ssh-server
+          - image: telnet-honeypot
+            context: docker/telnet-server
+          - image: mysql-honeypot
+            context: docker/sql-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ghcr.io/sofiliss/${{ matrix.image }}:latest
+            ghcr.io/sofiliss/${{ matrix.image }}:${{ github.sha }}
